@@ -32,17 +32,25 @@ class VectorStore:
     def add_documents(self, documents: list[dict]) -> int:
         """
         Upserts documents from DataFetcher into ChromaDB.
+        Deduplicates within the batch before sending.
         Returns the number of documents processed.
         """
         if not documents:
             return 0
 
+        # Deduplicate by ID within the batch (last one wins)
+        seen = {}
+        for doc in documents:
+            seen[self._make_id(doc)] = doc
+        unique = list(seen.values())
+        ids = list(seen.keys())
+
         self.collection.upsert(
-            documents=[doc["text"] for doc in documents],
-            metadatas=[doc["metadata"] for doc in documents],
-            ids=[self._make_id(doc) for doc in documents],
+            documents=[doc["text"] for doc in unique],
+            metadatas=[doc["metadata"] for doc in unique],
+            ids=ids,
         )
-        return len(documents)
+        return len(unique)
 
     # ------------------------------------------------------------------ #
     #  READ                                                                #
